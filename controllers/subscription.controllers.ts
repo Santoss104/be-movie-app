@@ -167,6 +167,7 @@ export const processSubscriptionPayment = CatchAsyncError(
       );
 
       // Kirim response
+      res.setHeader("Content-Type", "application/json");
       res.status(200).json({
         success: true,
         message: "Payment processed successfully",

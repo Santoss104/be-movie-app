@@ -6,7 +6,6 @@ import {
 } from "../controllers/subscription.controllers";
 import { validateSubscriptionData } from "../middleware/auth.middleware";
 
-
 const subscriptionRouter = express.Router();
 
 subscriptionRouter.post(
