@@ -7,7 +7,7 @@ import cookieParser from "cookie-parser";
 import userRouter from "./routes/user.route";
 import subscriptionRouter from './routes/subscription.route';
 import movieRouter from "./routes/movie.route";
-import watchHistoryRouter from "./routes/watch.history.route.ts"
+import watchHistoryRouter from "./routes/watch.history.route"
 import stremingRouter from "./routes/streming.route";
 
 dotenv.config();
