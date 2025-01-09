@@ -64,7 +64,7 @@ export const processSubscriptionPayment = CatchAsyncError(
         subscriptionId,
       } = req.body;
 
-      // Validasi input pembayaran
+      // Input validation
       if (
         !cardNumber ||
         !cardholderName ||
@@ -73,37 +73,60 @@ export const processSubscriptionPayment = CatchAsyncError(
         !cvv ||
         !subscriptionId
       ) {
-        return next(new ErrorHandler("All payment fields are required", 400));
+        res.status(400).json({
+          success: false,
+          message: "All payment fields are required",
+        });
+        return;
       }
 
-      // Validasi format kartu
-      if (cardNumber.length < 15 || cardNumber.length > 16) {
-        return next(new ErrorHandler("Invalid card number", 400));
+      // Card format validation
+      if (!/^\d{16}$/.test(cardNumber)) {
+        res.status(400).json({
+          success: false,
+          message: "Invalid card number format",
+        });
+        return;
       }
 
-      if (cvv.length < 3 || cvv.length > 4) {
-        return next(new ErrorHandler("Invalid CVV", 400));
+      if (!/^\d{3}$/.test(cvv)) {
+        res.status(400).json({
+          success: false,
+          message: "Invalid CVV format",
+        });
+        return;
       }
 
-      // Validasi expiry date
+      // Expiry validation
       const today = new Date();
       const expiry = new Date(expiryYear, expiryMonth - 1);
       if (expiry < today) {
-        return next(new ErrorHandler("Card has expired", 400));
+        res.status(400).json({
+          success: false,
+          message: "Card has expired",
+        });
+        return;
       }
 
-      // Cek subscription
+      // Check subscription
       const subscription = await SubscriptionModel.findById(subscriptionId);
       if (!subscription) {
-        return next(new ErrorHandler("Subscription not found", 404));
+        res.status(404).json({
+          success: false,
+          message: "Subscription not found",
+        });
+        return;
       }
 
-      // Cek status pembayaran
       if (subscription.paymentStatus === "completed") {
-        return next(new ErrorHandler("Subscription already paid", 400));
+        res.status(400).json({
+          success: false,
+          message: "Subscription already paid",
+        });
+        return;
       }
 
-      // Siapkan data kartu untuk pembayaran
+      // Prepare card details
       const cardDetails: ICreditCard = {
         cardNumber,
         cardholderName,
@@ -112,21 +135,19 @@ export const processSubscriptionPayment = CatchAsyncError(
         cvv,
       };
 
-      // Log pembayaran (dengan data yang sudah dibersihkan)
-      const sanitizedCardDetails = {
+      // Log sanitized payment info
+      console.log("Processing payment with:", {
         ...cardDetails,
         cardNumber: `****${cardDetails.cardNumber.slice(-4)}`,
         cvv: "***",
-      };
-      console.log("Processing payment with:", sanitizedCardDetails);
+      });
 
-      // Proses pembayaran
+      // Process payment
       const paymentResult = await PaymentUtils.processPayment(
         cardDetails,
         subscription.price
       );
 
-      // Handle payment errors
       if (!paymentResult.success) {
         let errorMessage = "Payment failed";
         let errorCode = 400;
@@ -153,10 +174,15 @@ export const processSubscriptionPayment = CatchAsyncError(
           `Payment failed for subscription ${subscriptionId}:`,
           paymentResult.error
         );
-        return next(new ErrorHandler(errorMessage, errorCode));
+
+        res.status(errorCode).json({
+          success: false,
+          message: errorMessage,
+        });
+        return;
       }
 
-      // Update subscription setelah pembayaran berhasil
+      // Update subscription after successful payment
       subscription.paymentStatus = "completed";
       subscription.status = "active";
       subscription.paymentVerificationId = paymentResult.paymentVerificationId;
@@ -166,7 +192,6 @@ export const processSubscriptionPayment = CatchAsyncError(
         `Payment successful for subscription: ${subscriptionId}, verification: ${paymentResult.paymentVerificationId}`
       );
 
-      // Kirim response
       res.setHeader("Content-Type", "application/json");
       res.status(200).json({
         success: true,
@@ -183,7 +208,10 @@ export const processSubscriptionPayment = CatchAsyncError(
       });
     } catch (error: any) {
       console.error("Payment processing error:", error);
-      return next(new ErrorHandler(error.message, 500));
+      res.status(500).json({
+        success: false,
+        message: error.message || "Payment processing failed",
+      });
     }
   }
 );
