@@ -64,7 +64,7 @@ export const processSubscriptionPayment = CatchAsyncError(
         subscriptionId,
       } = req.body;
 
-      // Input validation
+      // Input validation (basic checks)
       if (
         !cardNumber ||
         !cardholderName ||
@@ -80,24 +80,24 @@ export const processSubscriptionPayment = CatchAsyncError(
         return;
       }
 
-      // Card format validation
-      if (!/^\d{16}$/.test(cardNumber)) {
+      // Relax card format validation for demo
+      if (cardNumber.length !== 16 || !/^\d+$/.test(cardNumber)) {
         res.status(400).json({
           success: false,
-          message: "Invalid card number format",
+          message: "Card number must be 16 digits",
         });
         return;
       }
 
-      if (!/^\d{3}$/.test(cvv)) {
+      if (cvv.length !== 3 || !/^\d+$/.test(cvv)) {
         res.status(400).json({
           success: false,
-          message: "Invalid CVV format",
+          message: "CVV must be 3 digits",
         });
         return;
       }
 
-      // Expiry validation
+      // Expiry validation (allow future dates)
       const today = new Date();
       const expiry = new Date(expiryYear, expiryMonth - 1);
       if (expiry < today) {
@@ -108,7 +108,7 @@ export const processSubscriptionPayment = CatchAsyncError(
         return;
       }
 
-      // Check subscription
+      // Simulate subscription check
       const subscription = await SubscriptionModel.findById(subscriptionId);
       if (!subscription) {
         res.status(404).json({
@@ -126,58 +126,16 @@ export const processSubscriptionPayment = CatchAsyncError(
         return;
       }
 
-      // Prepare card details
-      const cardDetails: ICreditCard = {
-        cardNumber,
-        cardholderName,
-        expiryMonth,
-        expiryYear,
-        cvv,
+      // Simulate payment processing
+      const paymentResult = {
+        success: true,
+        paymentVerificationId: "DEMO123456", // Simulated payment verification ID
       };
 
-      // Log sanitized payment info
-      console.log("Processing payment with:", {
-        ...cardDetails,
-        cardNumber: `****${cardDetails.cardNumber.slice(-4)}`,
-        cvv: "***",
-      });
-
-      // Process payment
-      const paymentResult = await PaymentUtils.processPayment(
-        cardDetails,
-        subscription.price
-      );
-
       if (!paymentResult.success) {
-        let errorMessage = "Payment failed";
-        let errorCode = 400;
-
-        switch (paymentResult.error) {
-          case "CARD_DECLINED":
-            errorMessage = "Card was declined";
-            break;
-          case "INSUFFICIENT_FUNDS":
-            errorMessage = "Insufficient funds";
-            break;
-          case "INVALID_CARD":
-            errorMessage = "Invalid card details";
-            break;
-          case "PAYMENT_ERROR":
-            errorMessage = "Payment processing error";
-            errorCode = 500;
-            break;
-          default:
-            errorMessage = paymentResult.error || "Payment processing error";
-        }
-
-        console.error(
-          `Payment failed for subscription ${subscriptionId}:`,
-          paymentResult.error
-        );
-
-        res.status(errorCode).json({
+        res.status(400).json({
           success: false,
-          message: errorMessage,
+          message: "Payment failed",
         });
         return;
       }
