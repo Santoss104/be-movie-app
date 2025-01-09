@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { CatchAsyncError } from "../middleware/catchAsynError";
 import ErrorHandler from "../utils/error.handler";
 import SubscriptionModel from "../models/subscription.models";
+import { v4 as uuidv4 } from "uuid";
 import { PaymentUtils } from "../utils/payment";
 import { ICreditCard } from "../interfaces/card.interface";
 
@@ -129,7 +130,7 @@ export const processSubscriptionPayment = CatchAsyncError(
       // Simulate payment processing
       const paymentResult = {
         success: true,
-        paymentVerificationId: "DEMO123456", // Simulated payment verification ID
+        paymentVerificationId: uuidv4(), // Buat ID unik untuk verifikasi pembayaran
       };
 
       if (!paymentResult.success) {
