@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 // Routes
 import userRouter from "./routes/user.route";
 import subscriptionRouter from './routes/subscription.route';
+import homeRouter from "routes/home.route";
 import movieRouter from "./routes/movie.route";
 import tvShowRouter from "./routes/tvshow.route";
 import watchHistoryRouter from "./routes/watch.history.route"
@@ -32,6 +33,7 @@ app.use(cors(corsOptions));
 // routes
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/subscriptions", subscriptionRouter);
+app.use("/api/v1/home", homeRouter);
 app.use("/api/v1/movies", movieRouter);
 app.use("/api/v1/tvshows", tvShowRouter);
 app.use("/api/v1/history", watchHistoryRouter);
