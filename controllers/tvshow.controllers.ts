@@ -431,60 +431,38 @@ export const getTVShowsTabData = CatchAsyncError(
 
       const [trending, popular, newShows, continueWatching] = await Promise.all(
         [
-          axios.get<ITMDBResponse>(
+          axios.get(
             `${TMDB_BASE_URL}/trending/tv/week?api_key=${TMDB_API_KEY}`
           ),
-          axios.get<ITMDBResponse>(
-            `${TMDB_BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}`
-          ),
-          axios.get<ITMDBResponse>(
-            `${TMDB_BASE_URL}/tv/on_the_air?api_key=${TMDB_API_KEY}`
-          ),
+          axios.get(`${TMDB_BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}`),
+          axios.get(`${TMDB_BASE_URL}/tv/on_the_air?api_key=${TMDB_API_KEY}`),
           WatchHistoryModel.getContinueWatching(
             new mongoose.Types.ObjectId(userId),
             "tv",
-            10 // Menambahkan limit sebagai parameter ketiga
+            10
           ),
         ]
       );
 
+      const transformTVShow = (show: any) => ({
+        id: show.id,
+        title: show.name,
+        poster_path: show.poster_path
+          ? `${TMDB_IMAGE_BASE_URL.poster}${show.poster_path}`
+          : null,
+        backdrop_path: show.backdrop_path
+          ? `${TMDB_IMAGE_BASE_URL.backdrop}${show.backdrop_path}`
+          : null,
+        first_air_date: show.first_air_date,
+        vote_average: show.vote_average,
+        genre_ids: show.genre_ids || [],
+        type: "tvshow",
+      });
+
       const response = {
-        trending: trending.data.results.map((show: TMDBTVShow) => ({
-          id: show.id,
-          name: show.name,
-          poster_path: show.poster_path
-            ? `${TMDB_IMAGE_BASE_URL.poster}${show.poster_path}`
-            : null,
-          backdrop_path: show.backdrop_path
-            ? `${TMDB_IMAGE_BASE_URL.backdrop}${show.backdrop_path}`
-            : null,
-          first_air_date: show.first_air_date,
-          vote_average: show.vote_average,
-        })),
-        popular: popular.data.results.map((show: TMDBTVShow) => ({
-          id: show.id,
-          name: show.name,
-          poster_path: show.poster_path
-            ? `${TMDB_IMAGE_BASE_URL.poster}${show.poster_path}`
-            : null,
-          backdrop_path: show.backdrop_path
-            ? `${TMDB_IMAGE_BASE_URL.backdrop}${show.backdrop_path}`
-            : null,
-          first_air_date: show.first_air_date,
-          vote_average: show.vote_average,
-        })),
-        newShows: newShows.data.results.map((show: TMDBTVShow) => ({
-          id: show.id,
-          name: show.name,
-          poster_path: show.poster_path
-            ? `${TMDB_IMAGE_BASE_URL.poster}${show.poster_path}`
-            : null,
-          backdrop_path: show.backdrop_path
-            ? `${TMDB_IMAGE_BASE_URL.backdrop}${show.backdrop_path}`
-            : null,
-          first_air_date: show.first_air_date,
-          vote_average: show.vote_average,
-        })),
+        trending: trending.data.results.map(transformTVShow),
+        popular: popular.data.results.map(transformTVShow),
+        newShows: newShows.data.results.map(transformTVShow),
         continueWatching,
       };
 

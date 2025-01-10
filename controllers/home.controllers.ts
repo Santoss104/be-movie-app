@@ -14,6 +14,19 @@ interface TMDBResponse {
   total_results: number;
 }
 
+interface TMDBMovie {
+  id: number;
+  title: string;
+  name?: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  overview: string;
+  release_date?: string;
+  first_air_date?: string;
+  vote_average: number;
+  genre_ids: number[];
+}
+
 export const getHomeScreenData = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -23,7 +36,6 @@ export const getHomeScreenData = CatchAsyncError(
         return next(new ErrorHandler("User ID is required", 400));
       }
 
-      // Mengambil semua data yang diperlukan secara parallel
       const [
         continueWatching,
         trendingMovies,
@@ -33,105 +45,72 @@ export const getHomeScreenData = CatchAsyncError(
         dramaMovies,
         popularSeries,
       ] = await Promise.all([
-        // Continue watching dari WatchHistoryModel
         WatchHistoryModel.getContinueWatching(
           new mongoose.Types.ObjectId(userId)
         ),
-
-        // Trending movies
         axios.get<TMDBResponse>(
           `${TMDB_BASE_URL}/trending/movie/day?api_key=${TMDB_API_KEY}`
         ),
-
-        // Trending TV shows
         axios.get<TMDBResponse>(
-          `${TMDB_BASE_URL}/trending/tv/day?api_key=${TMDB_API_KEY}`
+          `${TMDB_BASE_URL}/tv/day?api_key=${TMDB_API_KEY}`
         ),
-
-        // For you section (personalized recommendations)
         axios.get<TMDBResponse>(
           `${TMDB_BASE_URL}/discover/movie?api_key=${TMDB_API_KEY}&sort_by=popularity.desc`
         ),
-
-        // Anime movies (using animation genre_id=16)
         axios.get<TMDBResponse>(
           `${TMDB_BASE_URL}/discover/movie?api_key=${TMDB_API_KEY}&with_genres=16&sort_by=popularity.desc`
         ),
-
-        // Drama movies (genre_id=18)
         axios.get<TMDBResponse>(
           `${TMDB_BASE_URL}/discover/movie?api_key=${TMDB_API_KEY}&with_genres=18&sort_by=popularity.desc`
         ),
-
-        // Popular TV Series
         axios.get<TMDBResponse>(
           `${TMDB_BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}`
         ),
       ]);
 
-      // Menggabungkan trending movies dan TV shows
-      const trending = [
-        ...trendingMovies.data.results.map((item) => ({
-          ...item,
-          mediaType: "movie",
-        })),
-        ...trendingTVShows.data.results.map((item) => ({
-          ...item,
-          title: item.name,
-          mediaType: "tv",
-        })),
-      ]
-        .sort(() => Math.random() - 0.5) // Mengacak urutan
-        .slice(0, 10); // Mengambil 10 item
+      // Transform the movie/show data to include necessary fields
+      const transformMedia = (item: TMDBMovie, type: "movie" | "tv") => ({
+        id: item.id,
+        title: type === "movie" ? item.title : item.name,
+        poster_path: item.poster_path
+          ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+          : null,
+        backdrop_path: item.backdrop_path
+          ? `https://image.tmdb.org/t/p/original${item.backdrop_path}`
+          : null,
+        genre_ids: item.genre_ids || [],
+        overview: item.overview,
+        release_date: item.release_date || item.first_air_date,
+        type: type,
+        vote_average: item.vote_average,
+      });
 
       const response = {
         success: true,
-        continueWatching: continueWatching.slice(0, 3), // Limit 3 items
-        trending: trending.map((item) => ({
-          id: item.id,
-          title: item.title,
-          poster_path: item.poster_path
-            ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-            : null,
-          backdrop_path: item.backdrop_path
-            ? `https://image.tmdb.org/t/p/original${item.backdrop_path}`
-            : null,
-          mediaType: item.mediaType,
-          genres: item.genre_ids,
-          overview: item.overview,
-        })),
-        forYou: forYouMovies.data.results.slice(0, 5).map((movie) => ({
-          id: movie.id,
-          title: movie.title,
-          poster_path: movie.poster_path
-            ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-            : null,
-        })),
-        animeMovies: animeMovies.data.results.slice(0, 3).map((movie) => ({
-          id: movie.id,
-          title: movie.title,
-          poster_path: movie.poster_path
-            ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-            : null,
-        })),
-        dramaMovies: dramaMovies.data.results.slice(0, 3).map((movie) => ({
-          id: movie.id,
-          title: movie.title,
-          poster_path: movie.poster_path
-            ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-            : null,
-        })),
-        popularSeries: popularSeries.data.results.slice(0, 3).map((show) => ({
-          id: show.id,
-          title: show.name,
-          poster_path: show.poster_path
-            ? `https://image.tmdb.org/t/p/w500${show.poster_path}`
-            : null,
-        })),
+        continueWatching: continueWatching.slice(0, 3),
+        trending: [
+          ...trendingMovies.data.results.map((m: TMDBMovie) =>
+            transformMedia(m, "movie")
+          ),
+          ...trendingTVShows.data.results.map((t: TMDBMovie) =>
+            transformMedia(t, "tv")
+          ),
+        ],
+        forYou: forYouMovies.data.results.map((m: TMDBMovie) =>
+          transformMedia(m, "movie")
+        ),
+        animeMovies: animeMovies.data.results.map((m: TMDBMovie) =>
+          transformMedia(m, "movie")
+        ),
+        dramaMovies: dramaMovies.data.results.map((m: TMDBMovie) =>
+          transformMedia(m, "movie")
+        ),
+        popularSeries: popularSeries.data.results.map((s: TMDBMovie) =>
+          transformMedia(s, "tv")
+        ),
       };
 
-      // Set cache untuk performa
-      res.set("Cache-Control", "public, max-age=300"); // Cache 5 menit
+      res.set("Cache-Control", "public, max-age=300");
       res.status(200).json(response);
     } catch (error) {
       console.error("Error in getHomeScreenData:", error);
