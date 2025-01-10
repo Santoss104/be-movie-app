@@ -543,39 +543,59 @@ export const getMoviesTabData = CatchAsyncError(
 
       const [trending, popular, newMovies, continueWatching] =
         await Promise.all([
-          axios.get(
+          axios.get<ITMDBResponse>(
             `${TMDB_BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}`
           ),
-          axios.get(`${TMDB_BASE_URL}/movie/popular?api_key=${TMDB_API_KEY}`),
-          axios.get(
+          axios.get<ITMDBResponse>(
+            `${TMDB_BASE_URL}/movie/popular?api_key=${TMDB_API_KEY}`
+          ),
+          axios.get<ITMDBResponse>(
             `${TMDB_BASE_URL}/movie/now_playing?api_key=${TMDB_API_KEY}`
           ),
           WatchHistoryModel.getContinueWatching(
             new mongoose.Types.ObjectId(userId),
             "movie",
-            10
+            10 // Menambahkan limit sebagai parameter ketiga
           ),
         ]);
 
-      const transformMovie = (movie: any) => ({
-        id: movie.id,
-        title: movie.title,
-        poster_path: movie.poster_path
-          ? `${TMDB_IMAGE_BASE_URL.poster}${movie.poster_path}`
-          : null,
-        backdrop_path: movie.backdrop_path
-          ? `${TMDB_IMAGE_BASE_URL.backdrop}${movie.backdrop_path}`
-          : null,
-        release_date: movie.release_date,
-        vote_average: movie.vote_average,
-        genre_ids: movie.genre_ids || [],
-        type: "movie",
-      });
-
       const response = {
-        trending: trending.data.results.map(transformMovie),
-        popular: popular.data.results.map(transformMovie),
-        newMovies: newMovies.data.results.map(transformMovie),
+        trending: trending.data.results.map((movie: TMDBMovie) => ({
+          id: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path
+            ? `${TMDB_IMAGE_BASE_URL.poster}${movie.poster_path}`
+            : null,
+          backdrop_path: movie.backdrop_path
+            ? `${TMDB_IMAGE_BASE_URL.backdrop}${movie.backdrop_path}`
+            : null,
+          release_date: movie.release_date,
+          vote_average: movie.vote_average,
+        })),
+        popular: popular.data.results.map((movie: TMDBMovie) => ({
+          id: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path
+            ? `${TMDB_IMAGE_BASE_URL.poster}${movie.poster_path}`
+            : null,
+          backdrop_path: movie.backdrop_path
+            ? `${TMDB_IMAGE_BASE_URL.backdrop}${movie.backdrop_path}`
+            : null,
+          release_date: movie.release_date,
+          vote_average: movie.vote_average,
+        })),
+        newMovies: newMovies.data.results.map((movie: TMDBMovie) => ({
+          id: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path
+            ? `${TMDB_IMAGE_BASE_URL.poster}${movie.poster_path}`
+            : null,
+          backdrop_path: movie.backdrop_path
+            ? `${TMDB_IMAGE_BASE_URL.backdrop}${movie.backdrop_path}`
+            : null,
+          release_date: movie.release_date,
+          vote_average: movie.vote_average,
+        })),
         continueWatching,
       };
 
