@@ -11,8 +11,6 @@ export const createSubscription = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { planType } = req.body;
-
-      // Validasi tipe plan
       if (!planType || !["monthly", "yearly"].includes(planType)) {
         return next(new ErrorHandler("Invalid subscription plan type", 400));
       }
@@ -64,8 +62,6 @@ export const processSubscriptionPayment = CatchAsyncError(
         cvv,
         subscriptionId,
       } = req.body;
-
-      // Input validation (basic checks)
       if (
         !cardNumber ||
         !cardholderName ||
@@ -81,7 +77,6 @@ export const processSubscriptionPayment = CatchAsyncError(
         return;
       }
 
-      // Relax card format validation for demo
       if (cardNumber.length !== 16 || !/^\d+$/.test(cardNumber)) {
         res.status(400).json({
           success: false,
@@ -98,7 +93,6 @@ export const processSubscriptionPayment = CatchAsyncError(
         return;
       }
 
-      // Expiry validation (allow future dates)
       const today = new Date();
       const expiry = new Date(expiryYear, expiryMonth - 1);
       if (expiry < today) {
@@ -109,7 +103,6 @@ export const processSubscriptionPayment = CatchAsyncError(
         return;
       }
 
-      // Simulate subscription check
       const subscription = await SubscriptionModel.findById(subscriptionId);
       if (!subscription) {
         res.status(404).json({
@@ -127,10 +120,9 @@ export const processSubscriptionPayment = CatchAsyncError(
         return;
       }
 
-      // Simulate payment processing
       const paymentResult = {
         success: true,
-        paymentVerificationId: uuidv4(), // Buat ID unik untuk verifikasi pembayaran
+        paymentVerificationId: uuidv4(),
       };
 
       if (!paymentResult.success) {
@@ -141,7 +133,6 @@ export const processSubscriptionPayment = CatchAsyncError(
         return;
       }
 
-      // Update subscription after successful payment
       subscription.paymentStatus = "completed";
       subscription.status = "active";
       subscription.paymentVerificationId = paymentResult.paymentVerificationId;
@@ -175,7 +166,7 @@ export const processSubscriptionPayment = CatchAsyncError(
   }
 );
 
-// Get subscription status (optional tapi berguna)
+// Get subscription status
 export const getSubscriptionStatus = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {

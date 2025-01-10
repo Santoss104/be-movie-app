@@ -3,6 +3,7 @@ import mongoose, { Document, Model } from "mongoose";
 export interface IWatchHistoryBase {
   userId: mongoose.Types.ObjectId;
   movieId: number;
+  mediaType: "movie" | "tv";
   title: string;
   posterPath?: string;
   currentTime: number;
@@ -12,6 +13,8 @@ export interface IWatchHistoryBase {
   lastPlayedAt: Date;
   progress: number;
   quality: "360p" | "480p" | "720p" | "1080p";
+  seasonNumber?: number; // Tambahan untuk TV Shows
+  episodeNumber?: number; // Tambahan untuk TV Shows
 }
 
 export interface IWatchHistory extends IWatchHistoryBase, Document {
@@ -27,6 +30,7 @@ interface IWatchHistoryModel extends Model<IWatchHistory> {
   ): Promise<IWatchHistory[]>;
   getContinueWatching(
     userId: mongoose.Types.ObjectId,
+    mediaType?: "movie" | "tv",
     limit?: number
   ): Promise<IWatchHistory[]>;
   getWhatToWatchTonight(userId: mongoose.Types.ObjectId): Promise<any[]>;
@@ -46,6 +50,11 @@ const watchHistorySchema = new mongoose.Schema<IWatchHistory>(
       required: true,
     },
     movieId: { type: Number, required: true },
+    mediaType: {
+      type: String,
+      enum: ["movie", "tv"],
+      required: true,
+    },
     title: { type: String, required: true },
     posterPath: { type: String },
     currentTime: { type: Number, default: 0 },
@@ -59,6 +68,8 @@ const watchHistorySchema = new mongoose.Schema<IWatchHistory>(
       enum: ["360p", "480p", "720p", "1080p"],
       default: "720p",
     },
+    seasonNumber: { type: Number },
+    episodeNumber: { type: Number },
   },
   { timestamps: true }
 );
@@ -99,13 +110,17 @@ watchHistorySchema.statics.getUserHistory = async function (
 
 watchHistorySchema.statics.getContinueWatching = async function (
   userId: mongoose.Types.ObjectId,
+  mediaType?: "movie" | "tv",
   limit: number = 10
 ): Promise<IWatchHistory[]> {
-  return this.find({
+  const query = {
     userId,
     completed: false,
     progress: { $gt: 0, $lt: 90 },
-  })
+    ...(mediaType && { mediaType }),
+  };
+
+  return this.find(query)
     .sort({ lastPlayedAt: -1 })
     .limit(limit)
     .select("-__v");
@@ -114,23 +129,29 @@ watchHistorySchema.statics.getContinueWatching = async function (
 watchHistorySchema.statics.updateWatchProgress = async function (
   userId: mongoose.Types.ObjectId,
   movieId: number,
+  mediaType: "movie" | "tv",
   currentTime: number,
-  duration: number
+  duration: number,
+  seasonNumber?: number,
+  episodeNumber?: number
 ): Promise<IWatchHistory> {
   const progress = Math.round((currentTime / duration) * 100);
   const completed = progress > 90;
 
-  return this.findOneAndUpdate(
-    { userId, movieId },
-    {
-      currentTime,
-      duration,
-      progress,
-      completed,
-      lastPlayedAt: new Date(),
-    },
-    { new: true, upsert: true }
-  );
+  const updateData = {
+    currentTime,
+    duration,
+    progress,
+    completed,
+    lastPlayedAt: new Date(),
+    ...(seasonNumber && { seasonNumber }),
+    ...(episodeNumber && { episodeNumber }),
+  };
+
+  return this.findOneAndUpdate({ userId, movieId, mediaType }, updateData, {
+    new: true,
+    upsert: true,
+  });
 };
 
 const WatchHistoryModel = mongoose.model<IWatchHistory, IWatchHistoryModel>("WatchHistory", watchHistorySchema);

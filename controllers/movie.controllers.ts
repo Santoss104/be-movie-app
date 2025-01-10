@@ -6,6 +6,7 @@ import axios, { AxiosError } from "axios";
 import winston from "winston";
 import rateLimit from "express-rate-limit";
 import SearchHistoryModel from "models/search.history.models";
+import WatchHistoryModel from "models/watch.history.models";
 import mongoose from "mongoose";
 
 // Setup logger
@@ -20,7 +21,6 @@ const logger = winston.createLogger({
 
 dotenv.config();
 
-// Validate environment variables
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 if (!TMDB_API_KEY) {
   throw new Error("TMDB_API_KEY is not defined in environment variables");
@@ -33,13 +33,11 @@ const TMDB_IMAGE_BASE_URL = {
   profile: "https://image.tmdb.org/t/p/w185",
 };
 
-// Rate limiter
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
 });
 
-// Interfaces
 interface ITMDBResponse {
   results: TMDBMovie[];
   total_pages: number;
@@ -107,7 +105,6 @@ export const getTrendingMovies = CatchAsyncError(
         genres: movie.genre_ids,
       }));
 
-      // Set cache headers
       res.set("Cache-Control", "public, max-age=300");
 
       res.status(200).json({
@@ -179,7 +176,6 @@ export const searchMovies = CatchAsyncError(
         });
       }
 
-      // If no query, return initial search page data
       const [popularActors, trending] = await Promise.all([
         axios.get(`${TMDB_BASE_URL}/person/popular?api_key=${TMDB_API_KEY}`),
         axios.get(
@@ -227,7 +223,6 @@ export const getRecentSearches = CatchAsyncError(
         return next(new ErrorHandler("User ID is required", 400));
       }
 
-      // Get recent searches from database
       const recentSearches = await SearchHistoryModel.aggregate([
         {
           $match: {
@@ -309,7 +304,6 @@ export const getMovieDetails = CatchAsyncError(
         return next(new ErrorHandler("Valid movie ID is required", 400));
       }
 
-      // Get movie details with cast, crew and videos
       const response = await axios.get(
         `${TMDB_BASE_URL}/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=videos,credits,release_dates`
       );
@@ -362,7 +356,6 @@ export const getMovieDetails = CatchAsyncError(
           )?.release_dates[0]?.certification || "N/A",
       };
 
-      // Set cache headers
       res.set("Cache-Control", "public, max-age=3600");
       res.status(200).json({
         success: true,
@@ -401,7 +394,6 @@ export const getMovieRecommendations = CatchAsyncError(
         vote_average: movie.vote_average,
       }));
 
-      // Set cache headers
       res.set("Cache-Control", "public, max-age=3600");
 
       res.status(200).json({
@@ -424,7 +416,6 @@ export const getMoviesByGenre = CatchAsyncError(
     try {
       const { genreId, page = 1 } = req.query;
 
-      // Validate parameters
       if (!genreId || typeof genreId !== "string" || isNaN(parseInt(genreId))) {
         return next(new ErrorHandler("Valid genre ID is required", 400));
       }
@@ -467,6 +458,154 @@ export const getMoviesByGenre = CatchAsyncError(
         page: req.query.page,
         error,
       });
+      handleAxiosError(error, next);
+    }
+  }
+);
+
+// Get New Movies (New on MUXX)
+export const getNewMovies = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await axios.get<ITMDBResponse>(
+        `${TMDB_BASE_URL}/movie/now_playing?api_key=${TMDB_API_KEY}`
+      );
+
+      const newMovies = response.data.results.map((movie: TMDBMovie) => ({
+        id: movie.id,
+        title: movie.title,
+        poster_path: movie.poster_path
+          ? `${TMDB_IMAGE_BASE_URL.poster}${movie.poster_path}`
+          : null,
+        backdrop_path: movie.backdrop_path
+          ? `${TMDB_IMAGE_BASE_URL.backdrop}${movie.backdrop_path}`
+          : null,
+        release_date: movie.release_date,
+        vote_average: movie.vote_average,
+        overview: movie.overview,
+      }));
+
+      res.set("Cache-Control", "public, max-age=300");
+      res.status(200).json({
+        success: true,
+        newMovies,
+      });
+    } catch (error) {
+      logger.error("Error in getNewMovies:", { error });
+      handleAxiosError(error, next);
+    }
+  }
+);
+
+// Get Popular Movies
+export const getPopularMovies = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const response = await axios.get<ITMDBResponse>(
+        `${TMDB_BASE_URL}/movie/popular?api_key=${TMDB_API_KEY}`
+      );
+
+      const popularMovies = response.data.results.map((movie: TMDBMovie) => ({
+        id: movie.id,
+        title: movie.title,
+        poster_path: movie.poster_path
+          ? `${TMDB_IMAGE_BASE_URL.poster}${movie.poster_path}`
+          : null,
+        backdrop_path: movie.backdrop_path
+          ? `${TMDB_IMAGE_BASE_URL.backdrop}${movie.backdrop_path}`
+          : null,
+        release_date: movie.release_date,
+        vote_average: movie.vote_average,
+        overview: movie.overview,
+      }));
+
+      res.set("Cache-Control", "public, max-age=300");
+      res.status(200).json({
+        success: true,
+        popularMovies,
+      });
+    } catch (error) {
+      logger.error("Error in getPopularMovies:", { error });
+      handleAxiosError(error, next);
+    }
+  }
+);
+
+// Get Movies Tab Data (Combines all movie data for the Movies tab)
+export const getMoviesTabData = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { userId } = req.params;
+
+      if (!userId) {
+        return next(new ErrorHandler("User ID is required", 400));
+      }
+
+      const [trending, popular, newMovies, continueWatching] =
+        await Promise.all([
+          axios.get<ITMDBResponse>(
+            `${TMDB_BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}`
+          ),
+          axios.get<ITMDBResponse>(
+            `${TMDB_BASE_URL}/movie/popular?api_key=${TMDB_API_KEY}`
+          ),
+          axios.get<ITMDBResponse>(
+            `${TMDB_BASE_URL}/movie/now_playing?api_key=${TMDB_API_KEY}`
+          ),
+          WatchHistoryModel.getContinueWatching(
+            new mongoose.Types.ObjectId(userId),
+            "movie",
+            10 // Menambahkan limit sebagai parameter ketiga
+          ),
+        ]);
+
+      const response = {
+        trending: trending.data.results.map((movie: TMDBMovie) => ({
+          id: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path
+            ? `${TMDB_IMAGE_BASE_URL.poster}${movie.poster_path}`
+            : null,
+          backdrop_path: movie.backdrop_path
+            ? `${TMDB_IMAGE_BASE_URL.backdrop}${movie.backdrop_path}`
+            : null,
+          release_date: movie.release_date,
+          vote_average: movie.vote_average,
+        })),
+        popular: popular.data.results.map((movie: TMDBMovie) => ({
+          id: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path
+            ? `${TMDB_IMAGE_BASE_URL.poster}${movie.poster_path}`
+            : null,
+          backdrop_path: movie.backdrop_path
+            ? `${TMDB_IMAGE_BASE_URL.backdrop}${movie.backdrop_path}`
+            : null,
+          release_date: movie.release_date,
+          vote_average: movie.vote_average,
+        })),
+        newMovies: newMovies.data.results.map((movie: TMDBMovie) => ({
+          id: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path
+            ? `${TMDB_IMAGE_BASE_URL.poster}${movie.poster_path}`
+            : null,
+          backdrop_path: movie.backdrop_path
+            ? `${TMDB_IMAGE_BASE_URL.backdrop}${movie.backdrop_path}`
+            : null,
+          release_date: movie.release_date,
+          vote_average: movie.vote_average,
+        })),
+        continueWatching,
+      };
+
+      res.set("Cache-Control", "public, max-age=300");
+      res.status(200).json({
+        success: true,
+        ...response,
+      });
+    } catch (error) {
+      logger.error("Error in getMoviesTabData:", { error });
       handleAxiosError(error, next);
     }
   }
