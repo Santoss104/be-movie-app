@@ -18,10 +18,10 @@ export class StreamingService {
     "1080p",
   ];
   private static readonly BITRATE_MAP: Record<VideoQuality, number> = {
-    "360p": 800, // 800 Kbps
-    "480p": 1500, // 1.5 Mbps
-    "720p": 2500, // 2.5 Mbps
-    "1080p": 4500, // 4.5 Mbps
+    "360p": 800,
+    "480p": 1500,
+    "720p": 2500,
+    "1080p": 4500,
   };
 
   static async getStreamingDetails(
@@ -56,7 +56,6 @@ export class StreamingService {
     movieId: number,
     quality: VideoQuality
   ): Promise<string> {
-    // Implement your streaming URL generation logic here
     return `https://your-streaming-service.com/stream/${movieId}?quality=${quality}`;
   }
 
@@ -72,7 +71,6 @@ export class StreamingService {
         url: `https://your-subtitle-service.com/subtitles/${movieId}/${trans.iso_639_1}.vtt`,
       }));
     } catch (error) {
-      console.error("Error fetching subtitles:", error);
       return [];
     }
   }

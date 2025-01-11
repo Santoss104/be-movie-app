@@ -1,4 +1,3 @@
-// models/search.history.model.ts
 import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface ISearchHistory extends Document {

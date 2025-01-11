@@ -138,10 +138,6 @@ export const processSubscriptionPayment = CatchAsyncError(
       subscription.paymentVerificationId = paymentResult.paymentVerificationId;
       await subscription.save();
 
-      console.log(
-        `Payment successful for subscription: ${subscriptionId}, verification: ${paymentResult.paymentVerificationId}`
-      );
-
       res.setHeader("Content-Type", "application/json");
       res.status(200).json({
         success: true,
@@ -157,7 +153,6 @@ export const processSubscriptionPayment = CatchAsyncError(
         },
       });
     } catch (error: any) {
-      console.error("Payment processing error:", error);
       res.status(500).json({
         success: false,
         message: error.message || "Payment processing failed",

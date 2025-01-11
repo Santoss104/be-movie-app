@@ -25,7 +25,6 @@ export const getStreamingDetails = CatchAsyncError(
       return next(new ErrorHandler("Movie ID and User ID are required", 400));
     }
 
-    // Get TMDB movie details
     const tmdbResponse = await axios
       .get(
         `https://api.themoviedb.org/3/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}`
@@ -36,13 +35,11 @@ export const getStreamingDetails = CatchAsyncError(
       return next(new ErrorHandler("Movie details not found", 404));
     }
 
-    // Get or create watch history
     let watchHistory = await WatchHistoryModel.findOne({
       userId: new mongoose.Types.ObjectId(userId),
       movieId,
     });
 
-    // If no watch history exists, create a new one
     if (!watchHistory) {
       watchHistory = await WatchHistoryModel.create({
         userId: new mongoose.Types.ObjectId(userId),
@@ -53,7 +50,6 @@ export const getStreamingDetails = CatchAsyncError(
       });
     }
 
-    // Get streaming details from service
     const streamingDetails = await StreamingService.getStreamingDetails(
       movieId,
       quality,
@@ -81,18 +77,15 @@ export const getVideoQualities = CatchAsyncError(
       return next(new ErrorHandler("Movie ID is required", 400));
     }
 
-    // Convert movieId to number and validate
     const movieIdNumber = parseInt(movieId);
     if (isNaN(movieIdNumber)) {
       return next(new ErrorHandler("Invalid Movie ID format", 400));
     }
 
-    // Call the service to get supported qualities
     const qualities = await StreamingService.getSupportedQualities(
       movieIdNumber
     );
 
-    // Handle case when no qualities are found
     if (!qualities || qualities.length === 0) {
       return next(
         new ErrorHandler("No video qualities found for this movie", 404)

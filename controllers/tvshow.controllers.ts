@@ -21,7 +21,6 @@ const logger = winston.createLogger({
 
 dotenv.config();
 
-// Validate environment variables
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 if (!TMDB_API_KEY) {
   throw new Error("TMDB_API_KEY is not defined in environment variables");
@@ -34,13 +33,11 @@ const TMDB_IMAGE_BASE_URL = {
   profile: "https://image.tmdb.org/t/p/w185",
 };
 
-// Rate limiter
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
 });
 
-// Interfaces
 interface ITMDBResponse {
   results: TMDBTVShow[];
   total_pages: number;
@@ -65,7 +62,6 @@ interface PaginationResponse {
   total_results: number;
 }
 
-// Helper functions
 const createPaginationResponse = (
   page: number,
   total_pages: number,
@@ -159,7 +155,6 @@ export const searchTVShows = CatchAsyncError(
         });
       }
 
-      // If no query, return popular TV shows
       const response = await axios.get(
         `${TMDB_BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}`
       );
@@ -443,7 +438,7 @@ export const getTVShowsTabData = CatchAsyncError(
           WatchHistoryModel.getContinueWatching(
             new mongoose.Types.ObjectId(userId),
             "tv",
-            10 // Menambahkan limit sebagai parameter ketiga
+            10
           ),
         ]
       );

@@ -23,7 +23,6 @@ export const getHomeScreenData = CatchAsyncError(
         return next(new ErrorHandler("User ID is required", 400));
       }
 
-      // Mengambil semua data yang diperlukan secara parallel
       const [
         continueWatching,
         trendingMovies,
@@ -33,7 +32,6 @@ export const getHomeScreenData = CatchAsyncError(
         dramaMovies,
         popularSeries,
       ] = await Promise.all([
-        // Continue watching dari WatchHistoryModel
         WatchHistoryModel.getContinueWatching(
           new mongoose.Types.ObjectId(userId)
         ),
@@ -69,7 +67,6 @@ export const getHomeScreenData = CatchAsyncError(
         ),
       ]);
 
-      // Menggabungkan trending movies dan TV shows
       const trending = [
         ...trendingMovies.data.results.map((item) => ({
           ...item,
@@ -81,12 +78,12 @@ export const getHomeScreenData = CatchAsyncError(
           mediaType: "tv",
         })),
       ]
-        .sort(() => Math.random() - 0.5) // Mengacak urutan
-        .slice(0, 10); // Mengambil 10 item
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 10);
 
       const response = {
         success: true,
-        continueWatching: continueWatching.slice(0, 3), // Limit 3 items
+        continueWatching: continueWatching.slice(0, 3),
         trending: trending.map((item) => ({
           id: item.id,
           title: item.title,
@@ -130,11 +127,9 @@ export const getHomeScreenData = CatchAsyncError(
         })),
       };
 
-      // Set cache untuk performa
-      res.set("Cache-Control", "public, max-age=300"); // Cache 5 menit
+      res.set("Cache-Control", "public, max-age=300");
       res.status(200).json(response);
     } catch (error) {
-      console.error("Error in getHomeScreenData:", error);
       next(error);
     }
   }

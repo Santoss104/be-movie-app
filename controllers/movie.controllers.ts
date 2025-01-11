@@ -124,7 +124,6 @@ export const searchMovies = CatchAsyncError(
     try {
       const { query, page = 1 } = req.query;
 
-      // Validasi query
       if (query && typeof query === "string" && query.trim().length > 0) {
             const userId = req.params.userId;
               await SearchHistoryModel.create({
@@ -440,7 +439,6 @@ export const getMoviesByGenre = CatchAsyncError(
         vote_average: movie.vote_average,
       }));
 
-      // Set cache headers
       res.set("Cache-Control", "public, max-age=300");
 
       res.status(200).json({
@@ -555,7 +553,7 @@ export const getMoviesTabData = CatchAsyncError(
           WatchHistoryModel.getContinueWatching(
             new mongoose.Types.ObjectId(userId),
             "movie",
-            10 // Menambahkan limit sebagai parameter ketiga
+            10
           ),
         ]);
 

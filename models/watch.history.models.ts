@@ -13,8 +13,8 @@ export interface IWatchHistoryBase {
   lastPlayedAt: Date;
   progress: number;
   quality: "360p" | "480p" | "720p" | "1080p";
-  seasonNumber?: number; // Tambahan untuk TV Shows
-  episodeNumber?: number; // Tambahan untuk TV Shows
+  seasonNumber?: number;
+  episodeNumber?: number;
 }
 
 export interface IWatchHistory extends IWatchHistoryBase, Document {
@@ -79,7 +79,6 @@ watchHistorySchema.index({ userId: 1, movieId: 1 }, { unique: true });
 watchHistorySchema.index({ userId: 1, watchedAt: -1 });
 watchHistorySchema.index({ userId: 1, completed: 1 });
 
-// Instance methods
 watchHistorySchema.methods.isCompleted = function (): boolean {
   return this.completed;
 };
@@ -97,7 +96,6 @@ watchHistorySchema.methods.updateProgress = function (
   this.lastPlayedAt = new Date();
 };
 
-// Static methods
 watchHistorySchema.statics.getUserHistory = async function (
   userId: mongoose.Types.ObjectId,
   limit: number = 10

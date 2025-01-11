@@ -31,13 +31,11 @@ export const registrationUser = CatchAsyncError(
         return next(new ErrorHandler("Passwords do not match", 400));
       }
 
-      // Check if user with this email already exists
       const existingUser = await UserModel.findOne({ email });
       if (existingUser) {
         return next(new ErrorHandler("Email already registered", 400));
       }
 
-      // Verify subscription
       const subscription = await SubscriptionModel.findById(subscriptionId);
       if (!subscription || subscription.paymentStatus !== "completed") {
         return next(new ErrorHandler("Valid subscription required", 400));
@@ -97,7 +95,6 @@ export const loginUser = CatchAsyncError(
 export const logoutUser = CatchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Clear JWT tokens from cookies/headers
       res.cookie("access_token", "", {
         maxAge: 1,
         httpOnly: true,
@@ -112,7 +109,6 @@ export const logoutUser = CatchAsyncError(
         sameSite: "lax",
       });
 
-      // Clear user session from redis if userId is available
       const userId = req.query.userId as string;
       if (userId) {
         await redis.del(userId);
@@ -149,7 +145,7 @@ export const updateAccessToken = CatchAsyncError(
       }
 
       const user = JSON.parse(session);
-      await redis.set(user.id, JSON.stringify(user), "EX", 604800); // 7days
+      await redis.set(user.id, JSON.stringify(user), "EX", 604800);
 
       next();
     } catch (error: any) {
