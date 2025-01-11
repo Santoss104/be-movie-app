@@ -36,16 +36,20 @@ export const getStreamingDetails = CatchAsyncError(
       return next(new ErrorHandler("Movie details not found", 404));
     }
 
-    // Get or initialize watch history
-    const watchHistory = await WatchHistoryModel.findOne({
+    // Get or create watch history
+    let watchHistory = await WatchHistoryModel.findOne({
       userId: new mongoose.Types.ObjectId(userId),
       movieId,
     });
 
+    // If no watch history exists, create a new one
     if (!watchHistory) {
-      return res.status(200).json({
-        success: false,
-        message: "No watch history found for this movie",
+      watchHistory = await WatchHistoryModel.create({
+        userId: new mongoose.Types.ObjectId(userId),
+        movieId,
+        currentTime: 0,
+        completed: false,
+        lastWatched: new Date(),
       });
     }
 
@@ -54,7 +58,7 @@ export const getStreamingDetails = CatchAsyncError(
       movieId,
       quality,
       tmdbResponse.data,
-      watchHistory?.currentTime || 0
+      watchHistory.currentTime || 0
     );
 
     if (!streamingDetails) {
