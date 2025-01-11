@@ -105,3 +105,38 @@ export const getVideoQualities = CatchAsyncError(
     });
   }
 );
+
+export const updateWatchProgress = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { userId, movieId, currentTime, duration } = req.body;
+
+    if (!userId || !movieId || currentTime === undefined) {
+      return next(new ErrorHandler("Missing required fields", 400));
+    }
+
+    try {
+      const watchHistory = await WatchHistoryModel.findOneAndUpdate(
+        {
+          userId: new mongoose.Types.ObjectId(userId),
+          movieId: Number(movieId),
+        },
+        {
+          $set: {
+            currentTime,
+            duration,
+            lastWatched: new Date(),
+            completed: currentTime >= duration,
+          },
+        },
+        { upsert: true, new: true }
+      );
+
+      res.status(200).json({
+        success: true,
+        watchHistory,
+      });
+    } catch (error) {
+      return next(new ErrorHandler("Error updating watch progress", 500));
+    }
+  }
+);
